@@ -1,0 +1,127 @@
+<gadget ><prompt-parameters><parameter  id="PERIODO" description="Período" metadata="datePeriod" required="true" keep-last="true" keep-date="false" show-inactives="false" label="PERIODO : Período" order="0"/><parameter  id="NUNOTA" description="Núm. Único" metadata="integer" required="false" keep-last="true" keep-date="false" show-inactives="false" label="NUNOTA : Número Inteiro" order="1"/><parameter  id="P_CODTIPOPER" description="Tipo de Operação:" metadata="entity:TipoOperacao@CODTIPOPER,DHALTER" required="false" keep-last="true" keep-date="false" show-inactives="false" label="P_CODTIPOPER : Entidade/Tabela" order="2"/><parameter  id="P_CODPARC" description="Parceiro:" metadata="entity:Parceiro@CODPARC" required="false" keep-last="true" keep-date="false" show-inactives="false" label="P_CODPARC : Entidade/Tabela" order="3"/></prompt-parameters><level id="03S" description="Principal"><container orientacao="V" tamanhoRelativo="100"><container orientacao="V" tamanhoRelativo="16.355458634319206"><simple-value id="svl_05P"><value-expression><![CDATA[<div style="position: relative; background: linear-gradient(to right, #38b2ac, #48bb78); border-radius: 0.375rem; overflow: hidden; text-align: center; min-height: 12rem;"> <!-- Alterei de max-height para min-height e aumentei o valor -->
+        <div style="position: relative; z-index: 10; margin-bottom: 0.25rem; color: white; font-size: 2.5rem; line-height: 1.2; font-weight: 700;">RELATÓRIO DE COMPRAS/VENDAS</div>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="position: absolute; right: 3; bottom: 5; height: 9rem; width: 9rem; margin-right: -2rem; margin-bottom: -2rem; color: #2f855a; opacity: 0.5;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>]]></value-expression></simple-value></container><container orientacao="V" tamanhoRelativo="50.277891357351635"><grid id="grd_03Z" useNewGrid="S"><title><![CDATA[Cabeçalho Notas]]></title><expression type="sql" data-source="MGEDS"><![CDATA[SELECT 
+
+CAB.NUNOTA,
+CAB.NUMNOTA,
+CAB.CODEMP,
+EMP.NOMEFANTASIA,
+CAB.CODNAT,
+PAR.CODPARC ||'-'||PAR.NOMEPARC PARCEIRO,
+PAR.RAZAOSOCIAL,
+CAB.CODTIPOPER,
+TOP.DESCROPER,
+CAB.DTENTSAI,
+CAB.DTFATUR,
+CAB.DTMOV,
+CAB.DTNEG,
+CAB.VLRNOTA,
+ITE.SEQUENCIA,
+ITE.CODPROD,
+PRO.DESCRPROD,
+COALESCE(NULLIF(CAB.BASEIRF, 0), CAB.VLRNOTA) AS BASEIRF,
+ITE.VLRTOT,
+ITE.VLRUNIT AS VLRUNITARIO,
+ITE.QTDNEG,
+CAB.CODNAT,
+NAT.DESCRNAT, 
+CAB.CODCENCUS,
+CUS.DESCRCENCUS,
+RAT.CODCENCUS AS CR_RATEIO, -- Centro de resultado do rateio
+CentroResultado.DESCRCENCUS AS DESCR_RATEIO, -- Descrição do centro de resultado do rateio
+
+CASE WHEN CAB.TIPMOV = 'C' THEN 'Compras' WHEN CAB.TIPMOV = 'V' THEN 'Vendas' END AS TIPO,
+CASE 
+        WHEN EXISTS (
+            SELECT 1 
+            FROM TGFRAT R 
+            WHERE R.NUFIN = CAB.NUNOTA 
+            AND R.CODNAT <> CAB.CODNAT -- Verifica se há outras naturezas diferentes da do cabeçalho
+        ) THEN 0 -- Retorna 0 se houver rateios com naturezas diferentes
+        WHEN RAT.CODCENCUS IS NOT NULL AND RAT.CODNAT = CAB.CODNAT AND RAT.CODPROJ = CAB.CODPROJ 
+            THEN ROUND(CAB.VLRNOTA * (COALESCE(RAT.PERCRATEIO, 0) / 100), 9)
+        ELSE NULL -- Retorna NULL se não houver rateio correspondente
+    END AS VLR_RAT,
+CASE 
+        WHEN EXISTS (
+            SELECT 1 
+            FROM TGFRAT R 
+            WHERE R.NUFIN = CAB.NUNOTA 
+            AND R.CODNAT <> CAB.CODNAT 
+        ) THEN 0 
+        WHEN RAT.CODCENCUS IS NOT NULL AND RAT.CODNAT = CAB.CODNAT AND RAT.CODPROJ = Projeto.CODPROJ THEN COALESCE(RAT.PERCRATEIO, 0)
+        ELSE NULL 
+    END AS PERCRATEIO,
+       CAB.codusuinc AS USERCODINCLUSAO,
+       usu.nomeusu AS USERINCLUSAO,
+        CAB.CODUSU AS USERSOL,
+       USU2.nomeusu AS USERSOLNOME
+
+
+
+FROM  TGFCAB CAB   
+INNER JOIN TGFITE ITE   ON (CAB.NUNOTA=ITE.NUNOTA)
+INNER  JOIN TGFPRO PRO   ON (ITE.CODPROD=PRO.CODPROD)
+INNER JOIN TSIEMP EMP ON 	EMP.CODEMP = CAB.CODEMP
+INNER JOIN TGFPAR PAR   ON (PAR.CODPARC=CAB.CODPARC)
+INNER  JOIN TCSPRJ PRJ   ON (PRJ.CODPROJ=CAB.CODPROJ)
+INNER JOIN TGFNAT NAT ON NAT.CODNAT = CAB.CODNAT
+INNER JOIN TGFTOP TOP   ON (TOP.CODTIPOPER=CAB.CODTIPOPER AND CAB.DHTIPOPER = TOP.DHALTER )
+INNER JOIN TSIUSU USU ON cab.CODUSUINC = usu.CODUSU 
+INNER JOIN TSIUSU USU2 ON cab.CODUSU = USU2.CODUSU 
+INNER JOIN TSICUS CUS ON CUS.CODCENCUS = CAB.CODCENCUS 
+LEFT JOIN TGFRAT RAT ON RAT.NUFIN = CAB.NUNOTA AND RAT.CODNAT = CAB.CODNAT AND RAT.CODPROJ = CAB.CODPROJ
+LEFT JOIN (
+    SELECT CODCENCUS, DESCRCENCUS 
+    FROM TSICUS 
+) CentroResultado ON RAT.CODCENCUS = CentroResultado.CODCENCUS
+LEFT JOIN (
+    SELECT CODPROJ, IDENTIFICACAO
+    FROM TCSPRJ
+) Projeto ON (RAT.CODPROJ) = Projeto.CODPROJ  
+ WHERE CAB.STATUSNOTA = 'L' 
+ AND CAB.TIPMOV IN ('C', 'V','O','J')
+ AND CAB.DTENTSAI BETWEEN :PERIODO.INI AND :PERIODO.FIN
+ AND (:NUNOTA IS NULL OR CAB.NUNOTA =:NUNOTA)
+ AND (CAB.CODTIPOPER = :P_CODTIPOPER OR :P_CODTIPOPER IS NULL)
+ AND (CAB.CODPARC = :P_CODPARC OR :P_CODPARC IS NULL)
+ AND (
+    RAT.CODCENCUS IS NULL -- Quando não há rateio, trazendo dados do cabeçalho
+    OR (RAT.CODCENCUS IS NOT NULL AND RAT.CODNAT = CAB.CODNAT AND RAT.CODPROJ = CAB.CODPROJ) -- Quando há rateio, e a natureza e o projeto correspondem ao cabeçalho
+)]]></expression><metadata><field name="NUNOTA" label="Nro. Único" type="I" visible="true" useFooter="false"></field><field name="NUMNOTA" label="NFe" type="I" visible="true" useFooter="false"></field><field name="CODEMP" label="Cód.Empresa" type="I" visible="true" useFooter="false"></field><field name="NOMEFANTASIA" label="Empresa" type="S" visible="true" useFooter="false"></field><field name="CODNAT" label="Cód.Natureza" type="I" visible="true" useFooter="false"></field><field name="PARCEIRO" label="Parceiro" type="S" visible="true" useFooter="false"></field><field name="RAZAOSOCIAL" label="Razão Social" type="S" visible="true" useFooter="false"></field><field name="CODTIPOPER" label="Cod.TOP" type="I" visible="true" useFooter="false"></field><field name="DESCROPER" label="Des.TOP" type="S" visible="true" useFooter="false"></field><field name="DTENTSAI" label="Dt. Entrada/Saída" type="D" visible="true" useFooter="false"></field><field name="DTFATUR" label="Dt. do Faturamento" type="D" visible="true" useFooter="false"></field><field name="DTMOV" label="Dt. do Movimento" type="D" visible="true" useFooter="false"></field><field name="DTNEG" label="Dt. Neg." type="D" visible="true" useFooter="false"></field><field name="VLRNOTA" label="vlr.nota Liquido" type="F" visible="true" useFooter="false"></field><field name="SEQUENCIA" label="Sequencia" type="I" visible="true" useFooter="false"></field><field name="CODPROD" label="Produto" type="I" visible="true" useFooter="false"></field><field name="DESCRPROD" label="Desc.produto" type="S" visible="true" useFooter="false"></field><field name="BASEIRF" label="vlr.nota" type="F" visible="true" useFooter="false"></field><field name="VLRTOT" label="Vlr. Total" type="F" visible="true" useFooter="false"></field><field name="VLRUNITARIO" label="Vlr. unitário" type="F" visible="true" useFooter="false"></field><field name="QTDNEG" label="Quantidade" type="F" visible="true" useFooter="false"></field><field name="DESCRNAT" label="Desc.Natureza" type="S" visible="true" useFooter="false"></field><field name="CODCENCUS" label="Cód.Centro de resultado" type="I" visible="true" useFooter="false"></field><field name="DESCRCENCUS" label="Desc.Centro de resultado" type="S" visible="true" useFooter="false"></field><field name="CR_RATEIO" label="CR Rateio" type="I" visible="true" useFooter="false"></field><field name="DESCR_RATEIO" label="Desc. Rateio" type="S" visible="true" useFooter="false"></field><field name="TIPO" label="Tipo" type="S" visible="true" useFooter="false"></field><field name="VLR_RAT" label="Vlr.rateio" type="F" visible="true" useFooter="false"></field><field name="PERCRATEIO" label="% Rateio" type="F" visible="true" useFooter="false"></field><field name="USERCODINCLUSAO" label="Cod.Inclusão" type="I" visible="true" useFooter="false"></field><field name="USERINCLUSAO" label="Usu.Inclusão" type="S" visible="true" useFooter="false"></field><field name="USERSOL" label="Usu.Solicitação" type="I" visible="true" useFooter="false"></field><field name="USERSOLNOME" label="Usu.Nome solicitação" type="S" visible="true" useFooter="false"></field></metadata><on-click-launcher  resource-id="br.com.sankhya.com.mov.CentralNotas"><NUNOTA>$NUNOTA</NUNOTA></on-click-launcher></grid></container><container orientacao="V" tamanhoRelativo="34.38313131313131"><grid id="grd_063" useNewGrid="S"><title><![CDATA[Notas rateados]]></title><expression type="sql" data-source="MGEDS"><![CDATA[SELECT
+CAB.CODEMP AS EMPRESA,
+CAB.NUNOTA AS NUMERO_NOTA,
+CAB.DTNEG AS DT_NEGOCIACAO,
+CAB.DTENTSAI AS DT_ENTRA_SAI,
+CAB.CODPARC AS COD_PARC,
+PAR.NOMEPARC AS NOME_PARCEIRO,
+CAB.CODTIPOPER AS TOP,
+TOP.DESCROPER AS OPERACAO,
+CAB.VLRNOTA AS VLR_NOTA,
+RAT.PERCRATEIO AS PORCENT,
+TRUNC(((RAT.PERCRATEIO*CAB.VLRNOTA)/100),2) AS VLR_RAT,
+RAT.CODPROJ AS PROJETO_RATEIO,
+PRJ2.IDENTIFICACAO AS NOME_PROJETO_RATEIO,
+U.DESCRCENCUS,
+CAB.codusuinc AS USERCODINCLUSAO,
+usu.nomeusu AS USERINCLUSAO,
+cab.CODUSU AS USERSOL,
+USU2.nomeusu AS USERSOLNOME
+FROM TGFCAB CAB
+INNER JOIN TGFPAR PAR ON (PAR.CODPARC = CAB.CODPARC)
+INNER JOIN TGFTOP TOP ON (TOP.CODTIPOPER = CAB.CODTIPOPER AND TOP.DHALTER = CAB.DHTIPOPER)
+INNER JOIN TSIUSU USU ON cab.CODUSUINC = usu.CODUSU 
+INNER JOIN TSIUSU USU2 ON cab.CODUSU = USU2.CODUSU
+LEFT JOIN TCSPRJ PRJ ON (PRJ.CODPROJ = CAB.CODPROJ)
+LEFT JOIN TGFRAT RAT ON (RAT.NUFIN = CAB.NUNOTA)
+LEFT JOIN TCSPRJ PRJ2 ON (PRJ2.CODPROJ = RAT.CODPROJ)
+LEFT JOIN TSICUS U ON RAT.CODCENCUS = U.CODCENCUS
+ WHERE CAB.STATUSNOTA = 'L' 
+ AND CAB.TIPMOV IN ('C', 'V','O','J')
+ AND CAB.DTENTSAI BETWEEN :PERIODO.INI AND :PERIODO.FIN
+ AND (:NUNOTA IS NULL OR CAB.NUNOTA =:NUNOTA)
+  AND (CAB.CODTIPOPER = :P_CODTIPOPER OR :P_CODTIPOPER IS NULL)
+ AND (CAB.CODPARC = :P_CODPARC OR :P_CODPARC IS NULL)
+ORDER BY 1]]></expression><metadata><field name="EMPRESA" label="Empresa" type="I" visible="true" useFooter="false"></field><field name="NUMERO_NOTA" label="Nr.Nota" type="I" visible="true" useFooter="false"></field><field name="DT_NEGOCIACAO" label="Dt.Negociação" type="D" visible="true" useFooter="false"></field><field name="DT_ENTRA_SAI" label="Dt entrada/saida" type="D" visible="true" useFooter="false"></field><field name="COD_PARC" label="Cod.Parceiro" type="I" visible="true" useFooter="false"></field><field name="NOME_PARCEIRO" label="Nome Parceiro" type="S" visible="true" useFooter="false"></field><field name="TOP" label="Top" type="I" visible="true" useFooter="false"></field><field name="OPERACAO" label="Operação" type="S" visible="true" useFooter="false"></field><field name="VLR_NOTA" label="Vlr.nota" type="F" visible="true" useFooter="false"></field><field name="PORCENT" label="%" type="F" visible="true" useFooter="false"></field><field name="VLR_RAT" label="Vlr.nota" type="I" visible="true" useFooter="false"></field><field name="PROJETO_RATEIO" label="projeto" type="I" visible="true" useFooter="false"></field><field name="NOME_PROJETO_RATEIO" label="nome projeto" type="S" visible="true" useFooter="false"></field><field name="DESCRCENCUS" label="Desc.Centro de resultado" type="S" visible="true" useFooter="false"></field><field name="USERCODINCLUSAO" label="Usu.Cod Inclusão" type="I" visible="true" useFooter="false"></field><field name="USERINCLUSAO" label="Usu.Inclusão" type="S" visible="true" useFooter="false"></field><field name="USERSOL" label="Usu.Solicitação" type="I" visible="true" useFooter="false"></field><field name="USERSOLNOME" label="Usu.Nome solicitação" type="S" visible="true" useFooter="false"></field></metadata><on-click-launcher resource-id="br.com.sankhya.com.mov.CentralNotas"><NUNOTA >$NUMERO_NOTA</NUNOTA></on-click-launcher></grid></container></container></level></gadget>
